@@ -8,11 +8,11 @@ This repository is the official implementation of two papers:
 >- [Retrosynthesis prediction using grammar-based neural machine translation: An information-theoretic approach](https://doi.org/10.1016/j.compchemeng.2021.107533)
 >Retrosynthetic prediction is one of the main challenges in chemical synthesis because it requires a search over the space of plausible chemical reactions that often results in complex, multi-step, branched synthesis trees for even moderately complex organic reactions. Here, we propose an approach that performs single-step retrosynthesis prediction using SMILES grammar-based representations in a neural machine translation framework. Information-theoretic analyses of such grammar-representations reveal that they are superior to SMILES representations and are better-suited for machine learning tasks due to their underlying redundancy and high information capacity. We report the top-1 prediction accuracy of 43.8% (syntactic validity 95.6%) and maximal fragment (MaxFrag) accuracy of 50.4%. Comparing our model’s performance with previous work that used character-based SMILES representations demonstrate significant reduction in grammatically invalid predictions and improved prediction accuracy. Fewer invalid predictions for both known and unknown reaction class scenarios demonstrate the model’s ability to learn the underlying SMILES grammar efficiently.
 
-> ![NMT framework](images/framework.png "The grammar-based machine translation froamework for forward and retrosynthetic predictions")
+> ![NMT framework](imgs/framework.png "The grammar-based machine translation froamework for forward and retrosynthetic predictions")
 >
 >*Figure 1: The grammar-based machine translation froamework for forward and retrosynthetic predictions*
 
->![Grammar tree](images/grammar-tree.png "The context-free grammar-based tree for the SMILES representation of CC=C (propene)")
+>![Grammar tree](imgs/grammar-tree.png "The context-free grammar-based tree for the SMILES representation of CC=C (propene)")
 >
 >*Figure 2: The context-free grammar-based tree for the SMILES representation of CC=C (propene)*
 
