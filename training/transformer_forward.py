@@ -391,7 +391,7 @@ def create_masks(inp, tar):
 
 def main_train_forward(hyperparams_forward):
 
-    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, num_layers, d_model, dff, num_heads, dropout_rate, pe_inpt, pe_targ) = hyperparams_forward
+    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers, d_model, dff, num_heads, dropout_rate, pe_inpt, pe_targ) = hyperparams_forward
 
     rktnt_filenames = [filepath + r'/rctnts/' + f for f in os.listdir(filepath + 'rctnts') if
                        isfile(join(filepath + 'rctnts', f))]

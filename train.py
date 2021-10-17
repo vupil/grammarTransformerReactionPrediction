@@ -32,6 +32,7 @@ FRAC_LB_UB=0.2
 TEST_FRAC_ID = 1  # only for evaluation
 TEST_FRAC = 0.2  # only for evaluation
 BEAM_SIZE = 3 # only for evaluation
+EVAL_DIR = 'results/forward'  # only for evaluation
 
 num_layers = 4  # number of layers per encoder/decoder
 d_model = 256  # embedding dimensions
@@ -41,28 +42,8 @@ dropout_rate = 0.1
 pe_inpt, pe_targ = maxlen_reactants, maxlen_products  # 700,300 PositionalEmbeddings input and target | should be the same reactants and products limits
 
 hyperparams_forward = (
-datasets_filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, num_layers, d_model, dff, num_heads, dropout_rate,
+datasets_filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers, d_model, dff, num_heads, dropout_rate,
 pe_inpt, pe_targ)
-
-# # ====================================================================================
-# #  Retrosynthesis prediction model
-# # ====================================================================================
-# datasets_filepath = "datasets/forward/test/"  # model training: datasets/forward/train/, evaluation: datasets/forward/test/
-# checkpoint_path_forward = "pretrained_models/forward"  # otherwise, None
-# batch_size = 3000
-# epochs = 100
-# FRAC_LB_UB=0.2
-#
-# num_layers = 4  # number of layers per encoder/decoder
-# d_model = 256  # embedding dimensions
-# dff = 512  # dimensions of each feed-forward network dense layer
-# num_heads = 8  # num of heads in the multi-head attention
-# dropout_rate = 0.1
-# pe_inpt, pe_targ = maxlen_reactants, maxlen_products  # 700,300 PositionalEmbeddings input and target | should be the same reactants and products limits
-#
-# hyperparams_forward = (
-# datasets_filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, num_layers, d_model, dff, num_heads, dropout_rate,
-# pe_inpt, pe_targ)
 
 
 if __name__ == "__main__":

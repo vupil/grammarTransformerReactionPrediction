@@ -30,7 +30,8 @@ epochs = 100
 FRAC_LB_UB=0.2
 TEST_FRAC_ID = 1  # only for evaluation
 TEST_FRAC = 1.0  # only for evaluation
-BEAM_SIZE = 1 # only for evaluation
+BEAM_SIZE = 2 # only for evaluation
+EVAL_DIR = 'results/forward'  # only for evaluation
 
 num_layers = 4  # number of layers per encoder/decoder
 d_model = 256  # embedding dimensions
@@ -40,7 +41,7 @@ dropout_rate = 0.1
 pe_inpt, pe_targ = maxlen_reactants, maxlen_products  # 700,300 PositionalEmbeddings input and target | should be the same reactants and products limits
 
 hyperparams_forward = (
-datasets_filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, num_layers, d_model, dff, num_heads, dropout_rate,
+datasets_filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers, d_model, dff, num_heads, dropout_rate,
 pe_inpt, pe_targ)
 
 

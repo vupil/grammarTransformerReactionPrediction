@@ -114,7 +114,8 @@ def translate_beam(sentence, transformer, pe_targ, beamSize=3):
 
 
 def main_eval_forward(hyperparams_forward):
-    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, num_layers, d_model,
+    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers,
+     d_model,
      dff, num_heads, dropout_rate, pe_inpt, pe_targ) = hyperparams_forward
 
     rktnt_filenames = [filepath + r'/rctnts/' + f for f in os.listdir(filepath + 'rctnts') if
@@ -139,12 +140,14 @@ def main_eval_forward(hyperparams_forward):
     train_rktnt_filenames = rktnt_filenames_sorted
     train_prdct_filenames = prdct_filenames_sorted
 
-    lobound, upbound = int(TEST_FRAC * (TEST_FRAC_ID - 1) * len(train_rktnt_filenames)), int(TEST_FRAC * TEST_FRAC_ID * len(train_rktnt_filenames))
+    lobound, upbound = int(TEST_FRAC * (TEST_FRAC_ID - 1) * len(train_rktnt_filenames)), int(
+        TEST_FRAC * TEST_FRAC_ID * len(train_rktnt_filenames))
     train_rktnt_filenames = train_rktnt_filenames[lobound:upbound]
     train_prdct_filenames = train_prdct_filenames[lobound:upbound]
 
     LOGGER.warning('validating on {} test files'.format(len(train_rktnt_filenames)))
 
+    # batch_size not used for evaluation
     my_evaluation_batch_generator = MyCustomGenerator(train_rktnt_filenames, train_prdct_filenames,
                                                       batch_size=batch_size,
                                                       frac_lb_ub=FRAC_LB_UB)
@@ -211,11 +214,15 @@ def main_eval_forward(hyperparams_forward):
     else:
         LOGGER.warning('No checkpoint found. Exiting...')
 
-    validate_model(my_evaluation_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID)
+
+    # create evaluation directory if does not exist
+    if not os.path.exists(EVAL_DIR):
+        os.makedirs(EVAL_DIR)
+
+    validate_model(my_evaluation_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID, EVAL_DIR)
 
 
-def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID):
-
+def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID, EVAL_DIR):
     # TODO: STREAMLINE THIS FUNCTION AND REMOVE THE HARDCODED PARTS SUCH AS 80 AS RULE INDEX.
     val_list, acc_list, sim_list = [], [], []
     BLEU_SCORE = []
@@ -226,8 +233,9 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
     for batch, res in enumerate(my_val_batch_generator):
         for r in res:
             inp, tar = r[0], r[1]
+
             # =====================================================================================
-            # Evaluate and plot a sentence
+            # Evaluate a sentence
             # =====================================================================================
             for idx in range(0, inp.shape[0]):
                 trns_inp, trns_tar = inp[idx], tar[idx]
@@ -239,21 +247,22 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
                 for s in range(len(res)):
                     # predicted reactants (target) for the given row num
                     # ============================================================
-
                     # ignore 81: remove last element in array
                     # split s at 81's (80's after subtracting 1)
-                    nwres = np.array(res[s][0] - 1).flatten()[:(pe_targ - 1)]
+
+                    # subtract 1 required so that index starts from 0-- required for smiles reconstruction from parse_trees code
+                    nwres = np.array(res[s][0] - 1).flatten()
                     nwreslist.append(nwres)
 
                 trns_tar_same = list(trns_tar[:np.argmax(trns_tar)] - 1)
-                trns_tar_same.append(79)
+                trns_tar_same.append(target_vocab_size - 2)  # 81 vocab size, 80 index, 79 for parse_trees
 
                 # actual product
-                one_hot_a = np.zeros((pe_targ, 80))
+                one_hot_a = np.zeros((pe_targ, target_vocab_size - 1))
                 for i in range(len(trns_tar_same)):
                     one_hot_a[i, int(trns_tar_same[i])] = 1
 
-                one_hot_a[np.all(one_hot_a == 0, axis=1), 79] = 1
+                one_hot_a[np.all(one_hot_a == 0, axis=1), target_vocab_size - 2] = 1
 
                 one_hot_a = one_hot_a.reshape((-1, one_hot_a.shape[0], one_hot_a.shape[1]))
                 act = parse_trees.ZincGrammarModel().decode(one_hot_a, return_smiles=True)
@@ -261,30 +270,30 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
                 prdlist = []
                 # predicted product
                 for nwres in nwreslist:
-                    one_hot = np.zeros((pe_targ, 80))
+                    one_hot = np.zeros((pe_targ, target_vocab_size - 1))
                     for i in range(len(nwres)):
                         one_hot[i, int(nwres[i])] = 1
 
-                    one_hot[np.all(one_hot == 0, axis=1), 79] = 1
+                    one_hot[np.all(one_hot == 0, axis=1), target_vocab_size - 2] = 1
 
                     one_hot = one_hot.reshape((-1, one_hot.shape[0], one_hot.shape[1]))
                     prd = parse_trees.ZincGrammarModel().decode(one_hot, return_smiles=True)
                     prdlist.append(prd[1])
 
-                # Reactants and agents
-                rktnts, agnts = [], []
-                brk_idx = np.where(trns_inp == 80)[0]
+                # Reactants
+                rktnts = []
+                brk_idx = np.where(trns_inp == (input_vocab_size - 1))[0]
                 rktnt_iter = 0
 
                 # reactants
                 for i in range(len(brk_idx) - 1):
                     seq = trns_inp[rktnt_iter:brk_idx[i]]
                     seq = list(seq - 1)
-                    seq.append(79)
+                    seq.append(input_vocab_size - 2)
 
                     rktnt_iter = brk_idx[i] + 1
 
-                    one_hot = np.zeros((pe_inpt, 80))
+                    one_hot = np.zeros((pe_inpt, input_vocab_size - 1))
 
                     for i in range(len(seq)):
                         one_hot[i, int(seq[i])] = 1
@@ -294,16 +303,9 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
 
                     rktnts.append(seq_parse[1])
 
-                if len(rktnts) == 0:
-                    rktnts.append(" ")
-                    rktnts.append(" ")
-                    rktnts.append(" ")
-
-                elif len(rktnts) == 1:
-                    rktnts.append(" ")
-                    rktnts.append(" ")
-                elif len(rktnts) == 2:
-                    rktnts.append(" ")
+                # =====================================================================================
+                # Compute aggregated statistics
+                # =====================================================================================
 
                 if BEAM_SIZE == 1:
                     BLEU_SCORE.append(nltk.translate.bleu_score.sentence_bleu([[*act[1][0]]], [*prd[1][0]]))
@@ -337,10 +339,8 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
 
                     LOGGER.warning('==' * 50)
 
-                    # _ = translate(trns_inp, transformer, plot='decoder_layer4_block2', RKTS= [rktnts[0], rktnts[1], rktnts[2]], AGNTS= agnts[0], PRDCTS=[act[1], prd[1]])
-
                     # create a csv file : rktnts, agnts , products, predicted, sim score, acc (binary), bleu score
-                    resdf.loc[resdf.shape[0], :] = [rktnts, agnts[0], act[1], prdlist,
+                    resdf.loc[resdf.shape[0], :] = [rktnts, act[1], prdlist,
                                                     val_list[-1], sim_list[-1], acc_list[-1], BLEU_SCORE[-1]]
 
                 except:
@@ -356,9 +356,7 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
                     LOGGER.warning('==' * 100)
 
                     # create a csv file : rktnts, agnts , products, predicted, sim score, acc (binary), bleu score
-                    resdf.loc[resdf.shape[0], :] = [rktnts, agnts[0], act[1], prdlist,
+                    resdf.loc[resdf.shape[0], :] = [rktnts, act[1], prdlist,
                                                     val_list[-1], sim_list[-1], acc_list[-1], BLEU_SCORE[-1]]
 
-                resdf.to_csv('testRes_{}.csv'.format(TEST_FRAC_ID))
-
-    exit()  # exit and not run for the next epoch
+                resdf.to_csv(EVAL_DIR+'/'+'testRes_{}.csv'.format(TEST_FRAC_ID))
