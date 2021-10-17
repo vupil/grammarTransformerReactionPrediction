@@ -3,7 +3,7 @@
 from rdkit import Chem
 from rdkit import RDLogger
 import numpy
-import parse_trees
+import preprocess.parse_trees as parse_trees
 import logging as logging
 import os
 
@@ -68,8 +68,6 @@ def get_reactions(fpath, verbose=False):
     return reactants, products
 
 
-# get_reactions('../datasets/forward/valid.txt', True)
-
 def encode_reaction(reaction, gram_mod, max_r, max_p):
     rktnts, prdcts = reaction[0], reaction[1]
     return gram_mod.encode((rktnts, prdcts), max_r, max_p)  # ignoring agnts completely
@@ -86,7 +84,7 @@ def encode_dataset_reaction(fpath, kind='train', forward=True, maxlen_reactants=
     rktnts_all, prdcts_all = get_reactions(fpath, verbose=verbose)
 
     # create directories
-    curr_dir = '../datasets/'
+    curr_dir = 'datasets/'
     if forward:
         curr_dir = curr_dir + 'forward'
     else:
@@ -120,7 +118,7 @@ def encode_dataset_reaction(fpath, kind='train', forward=True, maxlen_reactants=
 
         # pad zeros
         react_padlen, prdct_padlen = max(0, maxlen_reactants - rseq.shape[0]), max(0, maxlen_products - pseq.shape[0])
-        rseq, pseq = numpy.pad(rseq, (0, react_padlen)), numpy.pad(pseq, (0, prdct_padlen))
+        rseq, pseq = numpy.pad(rseq, (0, react_padlen), mode='constant'), numpy.pad(pseq, (0, prdct_padlen), mode='constant')
 
         if rktnts_array is None:
             rktnts_array, prdcts_arr = rseq, pseq
@@ -151,12 +149,11 @@ def encode_dataset_reaction(fpath, kind='train', forward=True, maxlen_reactants=
 
     LOGGER.warning('Writing the results upto i = : {}'.format(i))
 
-    numpy.savez_compressed(rktnts_path + 'rktnts_array_{}.npz'.format(i), rktnts_array)
-    numpy.savez_compressed(prdcts_path + 'prdcts_arr_{}.npz'.format(i), prdcts_arr)
+    # write remaining to separate file only if not None
+    if rktnts_array is not None and prdcts_arr is not None:
+        numpy.savez_compressed(rktnts_path + 'rktnts_array_{}.npz'.format(i), rktnts_array)
+        numpy.savez_compressed(prdcts_path + 'prdcts_arr_{}.npz'.format(i), prdcts_arr)
 
     LOGGER.warning("Finished writing the .npz files! Flushing the memory...")
 
     return
-
-
-encode_dataset_reaction('../datasets/forward/valid.txt', kind='valid')

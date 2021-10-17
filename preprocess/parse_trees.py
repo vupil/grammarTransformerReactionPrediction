@@ -162,3 +162,60 @@ class ZincGrammarModel(object):
             return False
 
         return ind_react_concat, ind_prod[0]
+
+    # Decoding begins here to transform logits to a legitimated one-hot represented SMILES molecule
+    def _sample_using_masks(self, unmasked, randomize):
+        """ Samples a one-hot vector, masking at each timestep.
+            This is an implementation of Algorithm 1 in the paper. """
+        eps = 1e-100
+        X_hat = np.zeros_like(unmasked)
+
+        # Create a stack for each input in the batch
+        S = np.empty((unmasked.shape[0],), dtype=object)
+        for ix in range(S.shape[0]):
+            S[ix] = [str(self._grammar.start_index)]
+
+        # Loop over time axis, sampling values and updating masks
+        for t in range(unmasked.shape[1]):
+            next_nonterminal = [self._lhs_map[pop_or_nothing(a)] for a in S]
+            mask = self._grammar.masks[next_nonterminal]
+            masked_output = np.exp(unmasked[:, t, :]) * mask + eps
+
+            if not randomize:
+                sampled_output = np.argmax(np.log(masked_output),
+                                       axis=-1)  # removed the randomness introducted in original version through the Gumbel distribution
+
+            else:
+                sampled_output = np.argmax(np.random.gumbel(size=masked_output.shape) + np.log(masked_output), axis=-1)
+
+            X_hat[np.arange(unmasked.shape[0]), t, sampled_output] = 1.0
+
+            # Identify non-terminals in RHS of selected production, and
+            # push them onto the stack in reverse order
+            rhs = [filter(lambda a: (type(a) == nltk.grammar.Nonterminal) and (str(a) != 'None'),
+                          self._productions[i].rhs())
+                   for i in sampled_output]
+            for ix in range(S.shape[0]):
+                S[ix].extend(list(map(str, rhs[ix]))[::-1])
+        return X_hat  # , ln_p
+
+    def decode(self, z, return_smiles=False, randomize=False):
+        """ Sample from the grammar decoder """
+        # assert z.ndim == 2
+        # unmasked = self.vae.decoder.predict(z)
+        unmasked = z  # the logit matrix for the product; no need to predict here, we already have the logits from CNN
+        X_hat = self._sample_using_masks(unmasked, randomize=randomize)
+
+        if return_smiles:
+            # Convert from one-hot to sequence of production rules
+            prod_seq = [[self._productions[X_hat[index, t].argmax()]
+                         for t in range(X_hat.shape[1])]
+                        for index in range(X_hat.shape[0])]
+
+            smilesStr = [prods_to_eq(prods) for prods in prod_seq]
+
+            # smilesStr[0]= re.sub('[.*1B@H\-1.*]', '', smilesStr[0])
+
+            return X_hat, smilesStr
+        else:
+            return X_hat
