@@ -9,13 +9,12 @@ import time
 import numpy as np
 import re
 import logging as logging
+from preprocess.grammar import D
 
 LOGGER = logging.getLogger(__name__)
 
-from preprocess.grammar import D
-input_vocab_size = D+1  # 81
-target_vocab_size = D+1 # 81
 
+WARMUP_STEPS = 4000
 
 # ====================================================================================
 # Positional Encodings
@@ -348,8 +347,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         arg1 = tf.math.rsqrt(step)
         # arg2 = step * (self.warmup_steps ** -1.5)
 
-        # HARDCODED warmup_steps!!!!
-        arg2 = step * (4000 ** -1.5)
+        arg2 = step * (WARMUP_STEPS ** -1.5)
 
         return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
@@ -391,7 +389,7 @@ def create_masks(inp, tar):
 
 def main_train_forward(hyperparams_forward):
 
-    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers, d_model, dff, num_heads, dropout_rate, pe_inpt, pe_targ) = hyperparams_forward
+    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers, d_model, dff, num_heads, dropout_rate, pe_inpt, pe_targ, input_vocab_size, target_vocab_size) = hyperparams_forward
 
     rktnt_filenames = [filepath + r'/rctnts/' + f for f in os.listdir(filepath + 'rctnts') if
                        isfile(join(filepath + 'rctnts', f))]

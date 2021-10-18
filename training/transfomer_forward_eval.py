@@ -8,15 +8,13 @@ import numpy as np
 import os
 from difflib import SequenceMatcher
 import preprocess.parse_trees as parse_trees
-
-LOGGER = logging.getLogger(__name__)
-
-from os.path import isfile, join
-from training.transformer_forward import create_masks, MyCustomGenerator, natural_sort, Transformer, CustomSchedule, \
-    loss_function, input_vocab_size, target_vocab_size
 import nltk
 import pandas as pd
+from os.path import isfile, join
+from training.transformer_forward import create_masks, MyCustomGenerator, natural_sort, Transformer, CustomSchedule, \
+    loss_function
 
+LOGGER = logging.getLogger(__name__)
 
 # ====================================================================================
 #  Evaluation
@@ -53,14 +51,11 @@ def evaluate_beam(inp_sentence, transformer, pe_targ, beamSize=5):
                     curr_output_and_scores.append((output, curr_score, is_decode))
                     continue
 
-            # else: decode the current sequence
-
-            # beamSizeAdjusted = beamSize - len(curr_output_and_scores)
             beamSizeAdjusted = beamSize
 
             enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, output)
 
-            # predictions.shape == (batch_size, seq_len, vocab_size)
+            ## TODO: ISSUE HERE WHEN USING WITH RETRO TRANSFORMER!!!!!
             predictions, attention_weights = transformer(encoder_input,
                                                          output,
                                                          False,
@@ -114,9 +109,8 @@ def translate_beam(sentence, transformer, pe_targ, beamSize=3):
 
 
 def main_eval_forward(hyperparams_forward):
-    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers,
-     d_model,
-     dff, num_heads, dropout_rate, pe_inpt, pe_targ) = hyperparams_forward
+    (filepath, checkpoint_path_forward, batch_size, epochs, FRAC_LB_UB, TEST_FRAC_ID, TEST_FRAC, BEAM_SIZE, EVAL_DIR, num_layers, d_model, dff, num_heads, dropout_rate, pe_inpt, pe_targ, input_vocab_size, target_vocab_size) = hyperparams_forward
+
 
     rktnt_filenames = [filepath + r'/rctnts/' + f for f in os.listdir(filepath + 'rctnts') if
                        isfile(join(filepath + 'rctnts', f))]
@@ -223,9 +217,7 @@ def main_eval_forward(hyperparams_forward):
 
 
 def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID, EVAL_DIR):
-    # TODO: STREAMLINE THIS FUNCTION AND REMOVE THE HARDCODED PARTS SUCH AS 80 AS RULE INDEX.
-    val_list, acc_list, sim_list = [], [], []
-    BLEU_SCORE = []
+    val_list, acc_list, sim_list, BLEU_SCORE = [], [], [], []
 
     resdf = pd.DataFrame(columns=['reactants', 'product', 'predicted', 'valid', 'similarity', 'acc', 'bleu'])
     rkncount = 0

@@ -6,6 +6,7 @@ import numpy
 import preprocess.parse_trees as parse_trees
 import logging as logging
 import os
+from preprocess.grammar import D
 
 LOGGER = logging.getLogger(__name__)
 RDLogger.DisableLog('rdApp.*')
@@ -14,9 +15,6 @@ _author_ = "vm2583@columbia.edu"
 
 
 def mols_from_smiles_list(all_smiles):
-    '''
-    Create list of rdkit mols from a given list of smiles strings
-    '''
     mols = []
     for smiles in all_smiles:
         if not smiles: continue
@@ -24,26 +22,80 @@ def mols_from_smiles_list(all_smiles):
     return mols
 
 
-# REACTION_DB = open(r"../datasets/data_jin/train.txt", "rb")
-# REACTION_DB = open(r"datasets/data_jin/train.txt", "rb")
-# REACTION_DB = open(r"datasets/human/test/human.txt", "rb")
+def get_reactions(fpath, verbose=False, forward=True):
+    if forward:
+        REACTION_DB = open(fpath, "rb")
+        counter = 0
+        reactants, agents, products, major_products = [], [], [], []
+        for example_doc in REACTION_DB:
+            try:
+                reaction_smiles = str(example_doc, 'utf-8')
+                reaction_smiles = reaction_smiles.strip("\r\n ").split()[0]
 
-def get_reactions(fpath, verbose=False):
-    REACTION_DB = open(fpath, "rb")
+                rctnts, agnts, prdcts = [mols_from_smiles_list(x) for x in
+                                         [mols.split('.') for mols in reaction_smiles.split('>')]]
+
+                # Sanitize the molecules: not necessary but recommended
+                [Chem.SanitizeMol(mol) for mol in rctnts + prdcts]
+
+                # Remove atom mappings from SMILES
+                for rctnt in rctnts:
+                    [x.ClearProp('molAtomMapNumber') for x in rctnt.GetAtoms() if x.HasProp('molAtomMapNumber')]
+                for prdct in prdcts:
+                    [x.ClearProp('molAtomMapNumber') for x in prdct.GetAtoms() if x.HasProp('molAtomMapNumber')]
+
+            except Exception as e:
+                LOGGER.warning(e)
+                LOGGER.warning('Could not load or sanitize SMILES')
+                continue
+
+            reactants.append([Chem.MolToSmiles(rctnt) for rctnt in rctnts])
+            products.append([Chem.MolToSmiles(prdct) for prdct in prdcts])
+            counter += 1
+
+            # # for debugging
+            # if counter == 300:
+            #     return reactants, products
+
+            if verbose:
+                if counter % 500 == 0:
+                    LOGGER.warning('Processed {} reactions'.format(counter))
+        return reactants, products
+
+    # for retro
+    # ======================
+    fpath_r, fpath_p = fpath[0], fpath[1]
+    reactants, products, rknclass_all = [], [], []
+
+    REACTION_DB1, REACTION_DB2 = open(fpath_r, "rb"), open(fpath_p, "rb")
+
     counter = 0
-    reactants, agents, products, major_products = [], [], [], []
-    for example_doc in REACTION_DB:
+    for (example_doc1, example_doc2) in zip(REACTION_DB1, REACTION_DB2):
         try:
-            reaction_smiles = str(example_doc, 'utf-8')
-            reaction_smiles = reaction_smiles.strip("\r\n ").split()[0]
+            reactant_smiles = str(example_doc1, 'utf-8')  # to remove the 'b' character from string
+            product_smiles = str(example_doc2, 'utf-8')  # to remove the 'b' character from string
 
-            rctnts, agnts, prdcts = [mols_from_smiles_list(x) for x in
-                                     [mols.split('.') for mols in reaction_smiles.split('>')]]
+            product_smiles = ''.join(
+                product_smiles.strip("\r\n ").split())  # .join to handle whilte spaces in SMILES in Kheyer's dataset
 
-            # Sanitize the molecules: not necessary but recommended
+            try:
+                rknclass = int(product_smiles[4:6])
+                rknclass_all.append(rknclass)
+                product_smiles = product_smiles[7:]
+            except:
+                rknclass = int(product_smiles[4])
+                rknclass_all.append(rknclass)
+                product_smiles = product_smiles[6:]
+
+            reactant_smiles = ''.join(reactant_smiles.strip("\r\n ").split()).split('.')
+
+            prdcts = mols_from_smiles_list([product_smiles])
+            rctnts = mols_from_smiles_list(
+                reactant_smiles)  # because reactants_smiles is already a list (dut to .split('.'))
+
             [Chem.SanitizeMol(mol) for mol in rctnts + prdcts]
 
-            # Remove atom mappings from SMILES
+            # Remove the atom mappings from the SMILES strings and then store in a list
             for rctnt in rctnts:
                 [x.ClearProp('molAtomMapNumber') for x in rctnt.GetAtoms() if x.HasProp('molAtomMapNumber')]
             for prdct in prdcts:
@@ -52,20 +104,22 @@ def get_reactions(fpath, verbose=False):
         except Exception as e:
             LOGGER.warning(e)
             LOGGER.warning('Could not load or sanitize SMILES')
+            rknclass_all.pop()  # remove the rkn class index corresponding to the incorrect/invalid SMILES
             continue
 
         reactants.append([Chem.MolToSmiles(rctnt) for rctnt in rctnts])
         products.append([Chem.MolToSmiles(prdct) for prdct in prdcts])
         counter += 1
 
-        # for debuggin
+        # for debugging
         if counter == 300:
-            return reactants, products
+            return reactants, products, rknclass_all
 
         if verbose:
             if counter % 500 == 0:
                 LOGGER.warning('Processed {} reactions'.format(counter))
-    return reactants, products
+
+    return reactants, products, rknclass_all
 
 
 def encode_reaction(reaction, gram_mod, max_r, max_p):
@@ -81,7 +135,10 @@ def order_reactants(reactants):
 
 
 def encode_dataset_reaction(fpath, kind='train', forward=True, maxlen_reactants=700, maxlen_products=300, verbose=True):
-    rktnts_all, prdcts_all = get_reactions(fpath, verbose=verbose)
+    if forward:
+        rktnts_all, prdcts_all = get_reactions(fpath, verbose=verbose, forward=forward)
+    else:
+        rktnts_all, prdcts_all, rknclass_all = get_reactions(fpath, verbose=verbose, forward=forward)
 
     # create directories
     curr_dir = 'datasets/'
@@ -116,9 +173,20 @@ def encode_dataset_reaction(fpath, kind='train', forward=True, maxlen_reactants=
 
         rseq, pseq = res
 
+        # if retro, insert 81 in between reactants and 82 at the end
+        if not forward:
+            rseq = numpy.insert(rseq, numpy.where(rseq == D)[0] + 1, D + 1)
+            rseq = numpy.hstack([rseq[:-1], D + 2])
+
+            pseq = numpy.insert(pseq, 0, rknclass_all[i])
+
+            if rseq.shape[0] > maxlen_reactants or pseq.shape[0] > maxlen_products:
+                continue
+
         # pad zeros
         react_padlen, prdct_padlen = max(0, maxlen_reactants - rseq.shape[0]), max(0, maxlen_products - pseq.shape[0])
-        rseq, pseq = numpy.pad(rseq, (0, react_padlen), mode='constant'), numpy.pad(pseq, (0, prdct_padlen), mode='constant')
+        rseq, pseq = numpy.pad(rseq, (0, react_padlen), mode='constant'), numpy.pad(pseq, (0, prdct_padlen),
+                                                                                    mode='constant')
 
         if rktnts_array is None:
             rktnts_array, prdcts_arr = rseq, pseq
