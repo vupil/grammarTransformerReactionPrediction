@@ -9,7 +9,6 @@ import time
 import numpy as np
 import re
 import logging as logging
-from preprocess.grammar import D
 
 LOGGER = logging.getLogger(__name__)
 

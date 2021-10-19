@@ -13,6 +13,7 @@ import pandas as pd
 from os.path import isfile, join
 from training.transformer_forward import create_masks, MyCustomGenerator, natural_sort, Transformer, CustomSchedule, \
     loss_function
+from preprocess.grammar import D
 
 LOGGER = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 #  Evaluation
 # ====================================================================================
 
-def evaluate_beam(inp_sentence, transformer, pe_targ, beamSize=5):
+def evaluate_beam(inp_sentence, transformer, pe_targ, target_vocab_size, beamSize=5):
     encoder_input = tf.expand_dims(inp_sentence, 0)
     decoder_input = [1]  # start token for the output: 1
     output = tf.expand_dims(decoder_input, 0)
@@ -55,7 +56,6 @@ def evaluate_beam(inp_sentence, transformer, pe_targ, beamSize=5):
 
             enc_padding_mask, combined_mask, dec_padding_mask = create_masks(encoder_input, output)
 
-            ## TODO: ISSUE HERE WHEN USING WITH RETRO TRANSFORMER!!!!!
             predictions, attention_weights = transformer(encoder_input,
                                                          output,
                                                          False,
@@ -103,8 +103,8 @@ def evaluate_beam(inp_sentence, transformer, pe_targ, beamSize=5):
     return all_outputs
 
 
-def translate_beam(sentence, transformer, pe_targ, beamSize=3):
-    result = evaluate_beam(sentence, transformer, pe_targ, beamSize=beamSize)
+def translate_beam(sentence, transformer, pe_targ, target_vocab_size, beamSize=3):
+    result = evaluate_beam(sentence, transformer, pe_targ, target_vocab_size, beamSize=beamSize)
     return result
 
 
@@ -213,10 +213,10 @@ def main_eval_forward(hyperparams_forward):
     if not os.path.exists(EVAL_DIR):
         os.makedirs(EVAL_DIR)
 
-    validate_model(my_evaluation_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID, EVAL_DIR)
+    validate_model(my_evaluation_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID, EVAL_DIR, input_vocab_size, target_vocab_size)
 
 
-def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID, EVAL_DIR):
+def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_SIZE, TEST_FRAC_ID, EVAL_DIR, input_vocab_size, target_vocab_size):
     val_list, acc_list, sim_list, BLEU_SCORE = [], [], [], []
 
     resdf = pd.DataFrame(columns=['reactants', 'product', 'predicted', 'valid', 'similarity', 'acc', 'bleu'])
@@ -231,7 +231,7 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
             # =====================================================================================
             for idx in range(0, inp.shape[0]):
                 trns_inp, trns_tar = inp[idx], tar[idx]
-                res = np.array(translate_beam(trns_inp, transformer, pe_targ, beamSize=BEAM_SIZE))
+                res = np.array(translate_beam(trns_inp, transformer, pe_targ, target_vocab_size, beamSize=BEAM_SIZE))
 
                 # Print parse tree from one-hot encoded results
                 # subtract 1 from all rules, then append 79 to the end
@@ -247,14 +247,14 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
                     nwreslist.append(nwres)
 
                 trns_tar_same = list(trns_tar[:np.argmax(trns_tar)] - 1)
-                trns_tar_same.append(target_vocab_size - 2)  # 81 vocab size, 80 index, 79 for parse_trees
+                trns_tar_same.append(D-1)  # 81 vocab size, 80 index, 79 for parse_trees
 
                 # actual product
                 one_hot_a = np.zeros((pe_targ, target_vocab_size - 1))
                 for i in range(len(trns_tar_same)):
                     one_hot_a[i, int(trns_tar_same[i])] = 1
 
-                one_hot_a[np.all(one_hot_a == 0, axis=1), target_vocab_size - 2] = 1
+                one_hot_a[np.all(one_hot_a == 0, axis=1), D-1] = 1
 
                 one_hot_a = one_hot_a.reshape((-1, one_hot_a.shape[0], one_hot_a.shape[1]))
                 act = parse_trees.ZincGrammarModel().decode(one_hot_a, return_smiles=True)
@@ -266,7 +266,7 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
                     for i in range(len(nwres)):
                         one_hot[i, int(nwres[i])] = 1
 
-                    one_hot[np.all(one_hot == 0, axis=1), target_vocab_size - 2] = 1
+                    one_hot[np.all(one_hot == 0, axis=1), D-1] = 1
 
                     one_hot = one_hot.reshape((-1, one_hot.shape[0], one_hot.shape[1]))
                     prd = parse_trees.ZincGrammarModel().decode(one_hot, return_smiles=True)
@@ -274,7 +274,7 @@ def validate_model(my_val_batch_generator, transformer, pe_inpt, pe_targ, BEAM_S
 
                 # Reactants
                 rktnts = []
-                brk_idx = np.where(trns_inp == (input_vocab_size - 1))[0]
+                brk_idx = np.where(trns_inp == D)[0]
                 rktnt_iter = 0
 
                 # reactants

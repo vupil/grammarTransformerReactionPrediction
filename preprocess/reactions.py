@@ -111,9 +111,9 @@ def get_reactions(fpath, verbose=False, forward=True):
         products.append([Chem.MolToSmiles(prdct) for prdct in prdcts])
         counter += 1
 
-        # for debugging
-        if counter == 300:
-            return reactants, products, rknclass_all
+        # # for debugging
+        # if counter == 300:
+        #     return reactants, products, rknclass_all
 
         if verbose:
             if counter % 500 == 0:
