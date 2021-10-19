@@ -1,0 +1,13 @@
+pretrained_models/forward filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro filter=lfs diff=lfs merge=lfs -text
+pretrained_models/forward/checkpoint filter=lfs diff=lfs merge=lfs -text
+pretrained_models/forward/ckpt-61.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+pretrained_models/forward/ckpt-61.index filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/noclass filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/withclass filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/noclass/checkpoint filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/noclass/ckpt-1112.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/noclass/ckpt-1112.index filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/withclass/checkpoint filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/withclass/ckpt-1055.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+pretrained_models/retro/withclass/ckpt-1055.index filter=lfs diff=lfs merge=lfs -text
