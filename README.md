@@ -16,6 +16,34 @@ This repository is the official implementation of two papers:
 >
 >*Figure 2: The context-free grammar-based tree for the SMILES representation of CC=C (propene)*
 
+## Citation
+> If use this code in any manner, please cite:
+- *Predicting chemical reaction outcomes: A grammar ontology-based transformer framework*, Vipul Mann, Venkat Venkatasubramanian, AIChE Journal, 67, 2021
+```
+@article{mann2021predicting,
+  title={Predicting chemical reaction outcomes: A grammar ontology-based transformer framework},
+  author={Mann, Vipul and Venkatasubramanian, Venkat},
+  journal={AIChE Journal},
+  volume={67},
+  number={3},
+  pages={e17190},
+  year={2021},
+  publisher={Wiley Online Library}
+}
+```
+
+- *Retrosynthesis prediction using grammar-based neural machine translation: An information-theoretic approach*, Vipul Mann, Venkat Venkatasubramanian, Computers & Chemical Engineering, 155, 2021
+```
+@article{mann2021retrosynthesis,
+title = {Retrosynthesis prediction using grammar-based neural machine translation: An information-theoretic approach},
+author = {Vipul Mann and Venkat Venkatasubramanian},
+journal = {Computers & Chemical Engineering},
+volume = {155},
+pages = {107533},
+year = {2021},
+issn = {0098-1354},
+}
+```
 
 ## Requirements
 
@@ -59,22 +87,50 @@ python eval.py
 
 ## Results
 
-Our model achieves the following performance on the USPTO datasets: 
+Our model achieves the following performance on the USPTO datasets:
 
-*to be updated*
+1. **Forward Prediction**
+
+`Table 1: Forward prediction model performance metrics on the USPTO test set`
+ | Top 1 accuracy  | Valid fraction | Similarity score | BLEU score |
+ |---------------- | -------------- |-------------- |-------------- |
+ |     80.1%         |      99.0%     |          95.8%         |      93.2%           |
+ 
+ 
+ `Table 2: Distribution of similarity scores on the USPTO test set`
+  |Similarity <a href="https://www.codecogs.com/eqnedit.php?latex=\inline&space;\geq&space;0.95" target="_blank"><img src="https://latex.codecogs.com/svg.latex?\inline&space;\geq&space;0.95" title="\geq 0.95" /></a>  | Similarity <a href="https://www.codecogs.com/eqnedit.php?latex=\inline&space;\geq&space;0.95" target="_blank"><img src="https://latex.codecogs.com/svg.latex?\inline&space;\geq&space;0.85" title="\geq 0.95" /></a> | Similarity <a href="https://www.codecogs.com/eqnedit.php?latex=\inline&space;\geq&space;0.95" target="_blank"><img src="https://latex.codecogs.com/svg.latex?\inline&space;\geq&space;0.95" title="\geq 0.75" /></a> |
+ |---------------- | -------------- |-------------- |
+ |     84.4%      |     90.3%    |      93.4%      |
+ 
+ `Table 3: Comparison with other works`
+ | Model  | # parameters | Top 1 accuracy | Top 2 accuracy | Top 3 accuracy |
+ |---------------- | -------------- |-------------- | -------------- |-------------- |
+ |     Molecular Transformer        |      12M       |           88.6%        |     92.4%       |          93.5%        |
+ |     S2S         |      30M       |           80.3%       |     84.7%       |           86.2%        |
+ |     **Our work**        |      5M       |           80.1%        |     86.3%      |           88.7%        |
 
 
-| Model name         | Top 1 Accuracy  | Top 2 Accuracy | Top 3 Accuracy |
-| ------------------ |---------------- | -------------- |-------------- |
-| Forward prediction |     -         |      -       |           -        |
 
-| Model name         | Top 1 Accuracy  | Top 3 Accuracy | Top 5 Accuracy |
-| ------------------ |---------------- | -------------- |-------------- |
-| Retrosynthesis prediction |     -         |      -       |           -        |
+2. **Retrosynthesis prediction**
 
-## Citation
-> If use this code in any manner, please cite the following papers:
+`Table 4: Performance metrics for the grammar-based retrosynthesis prediction model on the USPTO 50K test set`
+| Performance measure (%)        | Top 1   | Top 3  | Top 5  | Top 10 |
+| ------------------ |---------------- | -------------- |-------------- | -------------- |
+| Accuracy |     43.8         |     57.2       |       61.4      |       66.6      |
+| Fractional accuracy |     53.8         |     65.4       |       69.2      |       73.7      |
+| Valid fraction |     95.6        |     92.8       |       91.6      |       90.4      |
+| MaxFrag accuracy |      50.4       |     62.1      |      65.7      |       70.2      |
+| BLEU score |         74.8    |      83.4     |      85.2      |      87.4       |
+| Similarity score |       80.0      |       87.2    |      88.6      |       90.2      |
 
-- *Predicting chemical reaction outcomes: A grammar ontology-based transformer framework*, Vipul Mann, Venkat Venkatasubramanian, AIChE Journal, 67, 2021
+`Table 5: Accuracy comparison with other works using USPTO 50K dataset`
+| Model       | Top 1   | Top 3  | Top 5  | Top 10 |
+| ------------------ |---------------- | -------------- |-------------- | -------------- |
+| Liu Seq2Seq |    37.4         |     52.4       |       57.0      |       61.7     |
+| **Our work** |     43.8         |     57.2       |      61.4      |      66.6      |
 
-- *Retrosynthesis prediction using grammar-based neural machine translation: An information-theoretic approach*, Vipul Mann, Venkat Venkatasubramanian, Computers & Chemical Engineering, 155, 2021
+`Table 5: Invalid fraction comparison with other works using USPTO 50K dataset`
+| Model       | Top 1   | Top 3  | Top 5  | Top 10 |
+| ------------------ |---------------- | -------------- |-------------- | -------------- |
+| Liu Seq2Seq |    12.2        |     15.3      |       18.4      |       22.0     |
+| **Our work** |     4.4         |     7.2       |      8.4      |      9.6     |
